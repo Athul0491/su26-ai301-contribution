@@ -1,4 +1,4 @@
-# Contribution [#]: [Issue Title]
+# Contribution #7091: The JavaGenerator plugin for Gradle has no cache configuration
 
 **Contribution Number:** 1
 **Student:** Athul Thulasidasan
