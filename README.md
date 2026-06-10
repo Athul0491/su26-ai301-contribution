@@ -12,6 +12,7 @@
 I chose this issue because it focuses on a practical performance problem in a Gradle plugin: the crd2Java task regenerates Java sources every time, even when the CRD files have not changed. This stood out to me because it is a clear, well-scoped build tooling improvement with real developer impact. Adding proper Gradle task inputs and outputs would make the task cacheable and incremental, reducing unnecessary work and improving build times for users of the JavaGenerator plugin.
 
 This issue also matches my interest in backend tooling, developer productivity, and build systems. I have experience working with Java, Gradle-style project workflows, and generated code pipelines, so this feels like a good opportunity to deepen my understanding of Gradle task configuration, up-to-date checks, and build caching. Through this issue, I hope to learn more about how Gradle tracks task dependencies and outputs, while contributing a focused improvement that makes the plugin more efficient and reliable.
+
 ---
 
 ## Understanding the Issue
