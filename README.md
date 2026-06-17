@@ -48,25 +48,47 @@ JavaGeneratorPluginExtension.java is involved because it defines the user-facing
 Tests under java-generator/gradle-plugin/src/test, especially JavaGeneratorPluginTest.java and JavaGeneratorPluginExtensionTest.java, may also need updates or new test coverage to verify that the task is skipped when inputs and configuration have not changed, and reruns when CRDs or relevant options change.
 
 The core generator classes such as FileJavaGenerator, URLJavaGenerator, JavaGenerator, and Config are involved indirectly because the Gradle task delegates actual source generation to them. However, the main missing behavior appears to be in the Gradle task configuration rather than the generator logic itself.
+
 ---
 
 ## Reproduction Process
 
 ### Environment Setup
 
-[Notes on setting up your local development environment - challenges you faced, how you solved them]
+I worked from the repository sample Gradle project at /D:/codepath/kubernetes-client/java-generator/it/src/it/plugin/gradle/simple/build.gradle.
 
+  Local setup issues I hit:
+
+  - gradle and mvn were not on PATH.
+  - mvnw.cmd did not start correctly in this shell, so I could not rely on the wrapper directly.
+
+  How I solved them:
+
+  - Downloaded a local Maven 3.9.9 distribution and used it to install the minimal modules needed for the Gradle plugin sample.
+  - Downloaded a local Gradle 8.5 distribution and used gradle.bat directly against the sample project.
+  
 ### Steps to Reproduce
 
-1. [Step 1]
-2. [Step 2]
-3. [Observed result]
-
+  1. Install the Java generator Gradle plugin artifacts locally so the sample Gradle project can resolve io.fabric8.java-generator:999-SNAPSHOT.
+  2. Open the sample project at java-generator/it/src/it/plugin/gradle/simple.
+  3. Run gradle clean crd2Java --info.
+  4. Without changing the CRD file, run gradle crd2Java --info again.
+  5. The second crd2Java run executes again instead of being marked up-to-date, even though the CRD input was unchanged.
+     
 ### Reproduction Evidence
 
-- **Commit showing reproduction:** [Link to commit in your fork]
-- **Screenshots/logs:** [If applicable]
-- **My findings:** [What you discovered during reproduction]
+- **Commit showing reproduction:** NA
+- **Screenshots/logs:** <img width="730" height="126" alt="image" src="https://github.com/user-attachments/assets/ba9a18e9-35f5-4c70-a199-13d96ff26899" />
+
+
+- **My findings:**
+  - The issue is reproducible.
+  - /java-generator/gradle-plugin/src/main/java/io/fabric8/java/generator/gradle/plugin/task/JavaGeneratorCrd2JavaTask.java
+    defines a @TaskAction but does not declare Gradle inputs or outputs.
+
+  - Gradle explicitly reports the missing outputs as the reason the task is never up-to-date.
+  - The extension already exposes the relevant source/target properties in /D:/codepath/kubernetes-client/java-generator/gradle-plugin/src/main/java/io/
+    fabric8/java/generator/gradle/plugin/JavaGeneratorPluginExtension.java, so the task has the information needed to declare them.
 
 ---
 
@@ -74,30 +96,85 @@ The core generator classes such as FileJavaGenerator, URLJavaGenerator, JavaGene
 
 ### Analysis
 
-[Your analysis of the root cause - what's causing the issue?]
+Root cause: the Gradle task does not declare its inputs or outputs, so Gradle cannot do up-to-date checks.
+Specifically:
+
+  - /java-generator/gradle-plugin/src/main/java/io/fabric8/java/generator/gradle/plugin/task/JavaGeneratorCrd2JavaTask.java
+    has a @TaskAction but no @Input* / @Output* declarations.
+
+  - On reproduction, Gradle reported:
+    Task has not declared any outputs despite executing actions.
+
+  - The task reads CRD source/URLs and writes generated Java sources, but that work is opaque to Gradle today.
+  - Because of that, unchanged CRDs still trigger generation on every crd2Java run.
 
 ### Proposed Solution
 
-[High-level description of your fix approach]
+Declare the CRD inputs and generated-source outputs as Gradle task inputs/outputs so Gradle can skip the task when nothing relevant has changed.
+
+  High-level fix:
+
+  - Expose the local CRD source as an input file.
+  - Expose URL-based CRD sources as input values.
+  - Expose the download target directory for URL mode if it affects generated content.
+  - Expose generator configuration values that affect output as task inputs.
+  - Expose the generated Java target directory as the task output directory.
 
 ### Implementation Plan
 
 Using UMPIRE framework (adapted):
 
-**Understand:** [Restate the problem]
+**Understand:**   The crd2Java Gradle task always runs, even when CRD inputs are unchanged, because Gradle has no declared inputs/outputs for the task.
 
-**Match:** [What similar patterns/solutions exist in the codebase?]
+**Match:** Similar Gradle solutions use task property annotations such as:
 
-**Plan:** [Step-by-step implementation plan]
-1. [Modify file X to do Y]
-2. [Add function Z]
-3. [Update tests]
+  - @InputFile / @InputFiles
+  - @Input
+  - @OutputDirectory
+  - @Optional
+  - @PathSensitive
 
-**Implement:** [Link to your branch/commits as you work]
+  That is the standard Gradle pattern for incremental and up-to-date task behavior. The current codebase already exposes task-related properties through /
+  /java-generator/gradle-plugin/src/main/java/io/fabric8/java/generator/gradle/plugin/JavaGeneratorPluginExtension.java, so
+  the missing piece is wiring those into the task class.
+  
+**Plan:**
+1. Modify /D:/codepath/kubernetes-client/java-generator/gradle-plugin/src/main/java/io/fabric8/java/generator/gradle/plugin/task/
+     JavaGeneratorCrd2JavaTask.java to declare Gradle inputs and outputs.
 
-**Review:** [Self-review checklist - does it follow the project's contribution guidelines?]
+  2. Add getter methods on the task for:
+      - local CRD source
+      - URLs list
+      - download target if relevant
+      - generation target directory
+      - config-derived values that influence generation
 
-**Evaluate:** [How will you verify it works?]
+  3. Annotate those getters with the appropriate Gradle annotations.
+  4. Keep the runtime behavior unchanged; only make task inputs/outputs visible to Gradle.
+  5. Add or update a Gradle integration test to run crd2Java twice and assert the second run is UP-TO-DATE.
+  6. Verify no existing Gradle plugin tests regress.
+
+**Implement:** https://github.com/Athul0491/kubernetes-client/tree/fix/java-generator-gradle-crd2java-cache-7091
+
+**Review:**  
+  - Minimal diff only; no unrelated refactoring.
+  - Uses standard Gradle task input/output annotations.
+  - Preserves existing task behavior and public plugin usage.
+  - Covers both local source mode and URL-based mode.
+  - Adds an integration test proving the second unchanged run is UP-TO-DATE.
+  - Matches existing project style and Java conventions.
+  - Runs relevant tests only; avoids unnecessary broader changes.
+
+**Evaluate:** 
+I would verify the fix with:
+
+  1. Run the sample Gradle project once with clean crd2Java.
+  2. Run crd2Java again without modifying the CRD.
+  3. Confirm Gradle reports UP-TO-DATE on the second run.
+  4. Modify the CRD input and rerun.
+  5. Confirm Gradle re-executes the task after the input change.
+  6. Run the relevant Gradle plugin integration tests in java-generator/it.
+  7. Confirm no existing plugin behavior changed apart from up-to-date handling.
 
 ---
 
