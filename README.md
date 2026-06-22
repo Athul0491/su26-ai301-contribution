@@ -182,36 +182,49 @@ I would verify the fix with:
 
 ### Unit Tests
 
-- [ ] Test case 1: [Description]
-- [ ] Test case 2: [Description]
-- [ ] Test case 3: [Description]
+- [x] Test case 1: Verify the Gradle plugin registers the crd2Java task.
+- [x] Test case 2: Verify generated sources allow the sample Gradle project to compile after crd2Java runs.
+- [x] Test case 3: Verify the sample Gradle project fails to compile if crd2Java has not been executed.
 
 ### Integration Tests
 
-- [ ] Integration scenario 1
-- [ ] Integration scenario 2
+- [x] Integration scenario 1: Run clean crd2Java and confirm source generation succeeds in the Gradle sample project.
+- [x] Integration scenario 2: Run crd2Java a second time without changing inputs and confirm Gradle reports the task as UP-TO-DATE.
 
 ### Manual Testing
 
-[What you tested manually and results]
-
+- Reviewed the task metadata in /D:/codepath/kubernetes-client/java-generator/gradle-plugin/src/main/java/io/fabric8/java/generator/gradle/plugin/task/
+    JavaGeneratorCrd2JavaTask.java and the regression coverage in /D:/codepath/kubernetes-client/java-generator/it/src/test/java/io/fabric8/java/generator/
+    gradle/plugin/SimpleIT.java.
+- Executed the targeted integration test directly for io.fabric8.java.generator.gradle.plugin.SimpleIT
+- This runtime verification includes the regression check that a second unchanged crd2Java run is reported as UP-TO-DATE.
+  
 ---
 
 ## Implementation Notes
 
 ### Week [X] Progress
 
-[What you built this week, challenges faced, decisions made]
-
+- Implemented Gradle task input/output declarations for the JavaGenerator crd2Java task.
+- Added explicit task metadata for source files, URLs, generator options, generated output directory, and local download state.
+- Added an integration test covering the up-to-date behavior on a second unchanged run.
+- Main decision: use Gradle task annotations directly on the existing task rather than refactoring plugin structure, to keep the fix surgical and aligned
+  with the issue scope.
+  
 ### Week [Y] Progress
 
-[Continue documenting as you work]
-
+- The latest commit contains both the implementation change and the regression test.
+- Remaining work is verification: run the targeted Gradle integration tests and confirm the task is actually UP-TO-DATE under the sample project.
+- Completed runtime validation successfully: the Gradle integration tests for this issue now pass, including the up-to-date behavior check.
+  
 ### Code Changes
 
-- **Files modified:** [List]
-- **Key commits:** [Links to important commits]
-- **Approach decisions:** [Why you chose certain approaches]
+- **Files modified:**
+      - java-generator/gradle-plugin/src/main/java/io/fabric8/java/generator/gradle/plugin/task/JavaGeneratorCrd2JavaTask.java
+      - java-generator/it/src/test/java/io/fabric8/java/generator/gradle/plugin/SimpleIT.java
+- **Key commits:** https://github.com/Athul0491/kubernetes-client/commit/32a76167755f5c88aa9ef1a0e8b1366c3270876c
+- **Approach decisions:** chose Gradle task annotations because the issue is specifically about cache/up-to-date configuration; this is the minimal change
+    that exposes inputs and outputs to Gradle without changing generation logic.
 
 ---
 
