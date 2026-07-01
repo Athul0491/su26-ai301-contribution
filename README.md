@@ -230,15 +230,39 @@ I would verify the fix with:
 
 ## Pull Request
 
-**PR Link:** [GitHub PR URL when submitted]
+**PR Link:** https://github.com/fabric8io/kubernetes-client/pull/7981
 
-**PR Description:** [Draft or final PR description - much of the content above can be adapted]
+**PR Description:** Description
+Fixes #7091.
+
+This change makes the Gradle crd2Java task declare its incremental build metadata explicitly. The task now marks its source files, URLs, output
+directory, local download state, and generation options as Gradle inputs/outputs so unchanged runs can be recognized as UP-TO-DATE instead of executing
+again.
+
+The change also adds coverage at two levels:
+
+a unit test for the task metadata annotations
+an integration/regression test that runs crd2Java twice and verifies the second run is UP-TO-DATE
+Type of change
+ Bug fix (non-breaking change which fixes an issue)
+ Feature (non-breaking change which adds functionality)
+ Breaking change (fix or feature that would cause existing functionality to change
+ Chore (non-breaking change which doesn't affect codebase;
+test, version modification, documentation, etc.)
+Checklist
+ Code contributed by me aligns with current project license: Apache 2.0
+ I Added CHANGELOG entry regarding this change
+ I have implemented unit tests to cover my changes
+ I have added/updated the javadocs and other [documentation](https://
+github.com/fabric8io/kubernetes-client/blob/main/doc/CHEATSHEET.md) accordingly
+ No new bugs, code smells, etc. in SonarCloud report
+ I tested my code in Kubernetes
+ I tested my code in OpenShift
 
 **Maintainer Feedback:**
-- [Date]: [Summary of feedback received]
-- [Date]: [How you addressed it]
+Awaiting
 
-**Status:** [Awaiting review / Iterating / Approved / Merged]
+**Status:** Awaiting review
 
 ---
 
@@ -246,20 +270,26 @@ I would verify the fix with:
 
 ### Technical Skills Gained
 
-[What you learned technically]
 
+I learned more about how Gradle determines task incrementality and `UP-TO-DATE` status through task metadata such as `@Input`, `@InputFiles`,
+`@OutputDirectory`, `@LocalState`, and `@PathSensitive`. I also got a clearer understanding of the distinction between unit coverage for task metadata
+contracts and integration coverage that verifies actual Gradle task behavior end to end.
+
+  
 ### Challenges Overcome
 
-[What was hard and how you solved it]
+The main challenge was that the fix was not in the generator logic itself, but in the Gradle task metadata that controls cacheability and up-to-date
+detection. That meant I needed to verify both the task declaration and the observed Gradle behavior. I addressed that by adding a focused unit test for
+the task annotations and keeping the integration/regression test that verifies `crd2Java` is reported as `UP-TO-DATE` when inputs are unchanged.
 
 ### What I'd Do Differently Next Time
 
-[Reflection on your process]
+Next time I would add the changelog entry and unit-level metadata coverage right after I made the change.
 
 ---
 
 ## Resources Used
 
-- [Link to helpful documentation]
-- [Tutorial or Stack Overflow post that helped]
-- [GitHub issues or discussions that helped]
+- [Fabric8 kubernetes-client contribution guide](https://github.com/fabric8io/kubernetes-client/blob/main/CONTRIBUTING.md)
+- [Gradle incremental build annotations documentation](https://docs.gradle.org/current/userguide/incremental_build.html)
+- [Fabric8 issue #7091](https://github.com/fabric8io/kubernetes-client/issues/7091)
